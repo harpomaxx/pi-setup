@@ -2,12 +2,46 @@
 
 Private backup of my Pi agent setup.
 
-Includes extensions, model setup, and settings.
+Includes extensions, model setup, settings, and a bootstrap installer.
 
 Secrets and auth files are intentionally excluded.
 
-## Restore
+## One-liner install on a remote box
 
-Copy `extensions/*.ts` into your Pi agent extensions folder.
-Copy `models.json` and `settings.json` into your Pi agent folder.
+Because this repo is private, use a GitHub token with repo read access:
+
+```bash
+GH_TOKEN=github_pat_xxx bash -c 'curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" https://raw.githubusercontent.com/harpomaxx/pi-setup/main/install.sh | bash'
+```
+
+Or, if the remote box already has GitHub CLI authenticated:
+
+```bash
+bash -c "$(gh api repos/harpomaxx/pi-setup/contents/install.sh --jq .content | base64 -d)"
+```
+
+The installer will:
+
+1. Install Node.js LTS with `nvm` if `npm` is missing
+2. Run `npm install -g @mariozechner/pi-coding-agent@latest`
+3. Fetch this private repo
+4. Copy `extensions/*.ts` to `~/.pi/agent/extensions/`
+5. Copy `models.json` and `settings.json` to `~/.pi/agent/`
+
+If `models.json` references environment variables, export them before starting Pi, for example:
+
+```bash
+export E_INFRA_API_KEY='...'
+pi
+```
+
+## Manual restore
+
+```bash
+mkdir -p ~/.pi/agent/extensions
+cp extensions/*.ts ~/.pi/agent/extensions/
+cp models.json ~/.pi/agent/models.json
+cp settings.json ~/.pi/agent/settings.json
+```
+
 Then restart Pi or run `/reload`.

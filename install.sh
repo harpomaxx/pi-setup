@@ -3,8 +3,8 @@ set -euo pipefail
 
 # Install the latest Pi coding agent and restore this Pi setup.
 #
-# Private repo one-liner example:
-#   GH_TOKEN=github_pat_xxx bash -c 'curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" https://raw.githubusercontent.com/harpomaxx/pi-setup/main/install.sh | bash'
+# One-liner install:
+#   curl -fsSL https://raw.githubusercontent.com/harpomaxx/pi-setup/main/install.sh | bash
 #
 # If you already cloned the repo:
 #   ./install.sh
@@ -132,7 +132,7 @@ fetch_repo() {
   mkdir -p "${WORK_DIR}"
   local dest="${WORK_DIR}/pi-setup"
 
-  log "Fetching private setup repo ${REPO}@${REF}"
+  log "Fetching setup repo ${REPO}@${REF}"
 
   if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
     gh repo clone "${REPO}" "${dest}" -- --depth 1 --branch "${REF}" >/dev/null
@@ -141,13 +141,22 @@ fetch_repo() {
   fi
 
   require_cmd git
-  if [[ -n "${GH_TOKEN:-}" ]]; then
-    git clone --depth 1 --branch "${REF}" "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" "${dest}" >/dev/null 2>&1
+
+  # Try public clone first (no auth needed)
+  if git clone --depth 1 --branch "${REF}" "https://github.com/${REPO}.git" "${dest}" >/dev/null 2>&1; then
     echo "${dest}"
     return 0
   fi
 
-  fail "Cannot fetch private repo. Install/login with GitHub CLI ('gh auth login') or set GH_TOKEN with repo read access."
+  # Fall back to token-based clone if provided
+  if [[ -n "${GH_TOKEN:-}" ]]; then
+    if git clone --depth 1 --branch "${REF}" "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" "${dest}" >/dev/null 2>&1; then
+      echo "${dest}"
+      return 0
+    fi
+  fi
+
+  fail "Cannot fetch setup repo. Ensure git is available and you have network access, or set GH_TOKEN if the repo requires authentication."
 }
 
 restore_setup() {
@@ -161,8 +170,17 @@ restore_setup() {
     warn "No extensions/*.ts found in setup repo"
   fi
 
-  [[ -f "${src}/models.json" ]] && cp "${src}/models.json" "${AGENT_DIR}/models.json" || warn "models.json not found"
-  [[ -f "${src}/settings.json" ]] && cp "${src}/settings.json" "${AGENT_DIR}/settings.json" || warn "settings.json not found"
+  if [[ -f "${src}/models.json" ]]; then
+    cp "${src}/models.json" "${AGENT_DIR}/models.json"
+  else
+    warn "models.json not found"
+  fi
+
+  if [[ -f "${src}/settings.json" ]]; then
+    cp "${src}/settings.json" "${AGENT_DIR}/settings.json"
+  else
+    warn "settings.json not found"
+  fi
 
   chmod 700 "${AGENT_DIR}" "${AGENT_DIR}/extensions" 2>/dev/null || true
   chmod 600 "${AGENT_DIR}/models.json" "${AGENT_DIR}/settings.json" 2>/dev/null || true

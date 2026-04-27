@@ -15,6 +15,10 @@ AGENT_DIR="${PI_AGENT_DIR:-$HOME/.pi/agent}"
 WORK_DIR="${PI_SETUP_WORK_DIR:-$(mktemp -d)}"
 KEEP_WORK_DIR="${PI_SETUP_KEEP_WORK_DIR:-0}"
 PACKAGE="${PI_PACKAGE:-@mariozechner/pi-coding-agent@latest}"
+# User-writable npm global prefix. Used when the current npm global prefix is not writable,
+# or always when PI_CONFIGURE_NPM_PREFIX=always. Set PI_CONFIGURE_NPM_PREFIX=never to disable.
+NPM_USER_PREFIX="${PI_NPM_PREFIX:-$HOME/.npm-global}"
+CONFIGURE_NPM_PREFIX="${PI_CONFIGURE_NPM_PREFIX:-auto}" # auto | always | never
 
 log() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33mWARN:\033[0m %s\n' "$*" >&2; }
@@ -48,11 +52,72 @@ ensure_npm() {
   nvm use --lts
 }
 
+path_contains() {
+  case ":${PATH}:" in
+    *":$1:"*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+append_line_once() {
+  local file="$1"
+  local line="$2"
+  mkdir -p "$(dirname "$file")"
+  touch "$file"
+  grep -Fqx "$line" "$file" 2>/dev/null || printf '\n%s\n' "$line" >>"$file"
+}
+
+configure_shell_path() {
+  local bin_dir="$1"
+
+  export PATH="${bin_dir}:${PATH}"
+
+  # Bash login/interactive shells commonly read ~/.bashrc on Linux.
+  append_line_once "$HOME/.bashrc" "# Pi/user npm global binaries"
+  append_line_once "$HOME/.bashrc" "export PATH=\"${bin_dir}:\$PATH\""
+
+  # Fish shells read ~/.config/fish/config.fish.
+  append_line_once "$HOME/.config/fish/config.fish" "# Pi/user npm global binaries"
+  append_line_once "$HOME/.config/fish/config.fish" "fish_add_path -g \"${bin_dir}\""
+
+  case "${SHELL:-}" in
+    */fish) log "Updated fish PATH in ~/.config/fish/config.fish" ;;
+    */bash|"") log "Updated bash PATH in ~/.bashrc" ;;
+    *) warn "Unknown shell '${SHELL:-unset}'. Updated both ~/.bashrc and fish config; ensure ${bin_dir} is on PATH." ;;
+  esac
+}
+
+configure_npm_user_prefix() {
+  [[ "${CONFIGURE_NPM_PREFIX}" == "never" ]] && return 0
+
+  local current_prefix current_bin should_configure
+  current_prefix="$(npm config get prefix)"
+  current_bin="${current_prefix}/bin"
+  should_configure=0
+
+  if [[ "${CONFIGURE_NPM_PREFIX}" == "always" ]]; then
+    should_configure=1
+  elif [[ ! -w "${current_prefix}" ]]; then
+    should_configure=1
+  elif ! path_contains "${current_bin}"; then
+    # Prefix is usable, but pi would not be found after npm -g install.
+    configure_shell_path "${current_bin}"
+  fi
+
+  if [[ "${should_configure}" == "1" ]]; then
+    log "Configuring user npm global prefix at ${NPM_USER_PREFIX}"
+    mkdir -p "${NPM_USER_PREFIX}/bin"
+    npm config set prefix "${NPM_USER_PREFIX}"
+    configure_shell_path "${NPM_USER_PREFIX}/bin"
+  fi
+}
+
 install_pi() {
   ensure_npm
+  configure_npm_user_prefix
   log "Installing latest Pi coding agent: ${PACKAGE}"
   npm install -g "${PACKAGE}"
-  log "Pi version: $(pi --version 2>/dev/null || echo installed)"
+  log "Pi version: $(pi --version 2>/dev/null || "${NPM_USER_PREFIX}/bin/pi" --version 2>/dev/null || echo installed)"
 }
 
 fetch_repo() {

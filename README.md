@@ -82,8 +82,8 @@ The installer automatically appends a `source` line to `~/.bashrc`, `~/.zshrc`, 
 |------|-------------|
 | `approval-gate.ts` | Claude Code-like tool approvals (`/approval`) |
 | `stay-in-current-directory.ts` | Sandbox file access to the pi start directory |
-| `web-search.ts` | **Web search tool** — lets the agent search DuckDuckGo for up-to-date info |
-| `workflowy.ts` | **Workflowy API** — create, read, update, complete, and list Workflowy nodes |
+| `web-search.ts` | **Web search tool** - lets the agent search DuckDuckGo for up-to-date info |
+| `workflowy.ts` | **Workflowy API** - create, read, update, complete, and list Workflowy nodes |
 
 ### Workflowy
 
@@ -125,15 +125,22 @@ The `web-search.ts` extension registers a `web_search` tool that the LLM can cal
 
 **Tool usage:**
 - The agent invokes `web_search` with a `query` and optional `max_results` (1–10, default 5).
-- Results include titles, URLs, and snippets, properly truncated to Pi’s 50 KB / 2000-line limit.
+- Results include titles, URLs, and snippets, properly truncated to Pi's 50 KB / 2000-line limit.
 - No API key is required — it scrapes DuckDuckGo anonymously.
+
+**Resilience features:**
+- **Rotating User-Agents** — cycles through 6 realistic browser strings on each retry
+- **Multiple endpoints** — falls back across `duckduckgo.com/html/`, `html.duckduckgo.com/html/`, and `lite.duckduckgo.com/lite/`
+- **Exponential backoff + jitter** — retries up to 3 times per endpoint with delays of ~1.5s, 3s, 6s
+- **CAPTCHA detection** — detects bot challenge pages and automatically retries or moves to the next endpoint
+- **Clear error messages** — if all endpoints fail, reports a human-readable error with suggestions
 
 **Manual usage:**
 ```
 /websearch how to center a div in css
 ```
 
-**Note:** DuckDuckGo may occasionally block automated requests. If searches start failing consistently, consider switching to a search provider with an API key (e.g., Serper, Bing).
+**Note:** If DuckDuckGo consistently blocks your IP (common on cloud/VPN hosts), consider adding a search provider with an API key (e.g., Serper, Bing) as a fallback.
 
 ## Manual restore
 

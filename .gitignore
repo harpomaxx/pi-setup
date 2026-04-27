@@ -1,0 +1,9 @@
+auth.json
+*.key
+*.pem
+*.secret
+.env
+.env.*
+node_modules/
+dist/
+.DS_Store

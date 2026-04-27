@@ -112,6 +112,23 @@ configure_npm_user_prefix() {
   fi
 }
 
+configure_agent_env() {
+  local agent_env="${AGENT_DIR}/env"
+  log "Configuring shell profiles to source ${agent_env}"
+
+  # Bash
+  append_line_once "$HOME/.bashrc" "# Pi agent secrets/env"
+  append_line_once "$HOME/.bashrc" 'source "$HOME/.pi/agent/env" 2>/dev/null || true'
+
+  # Zsh
+  append_line_once "$HOME/.zshrc" "# Pi agent secrets/env"
+  append_line_once "$HOME/.zshrc" 'source "$HOME/.pi/agent/env" 2>/dev/null || true'
+
+  # Fish
+  append_line_once "$HOME/.config/fish/config.fish" "# Pi agent secrets/env"
+  append_line_once "$HOME/.config/fish/config.fish" 'test -f "$HOME/.pi/agent/env"; and source "$HOME/.pi/agent/env"'
+}
+
 install_pi() {
   ensure_npm
   configure_npm_user_prefix
@@ -194,14 +211,15 @@ main() {
   local setup_dir
   setup_dir="$(fetch_repo)"
   restore_setup "${setup_dir}"
+  configure_agent_env
 
   cat <<'EOF'
 
 Done.
 
-If your models.json uses environment variables for API keys, export them before starting pi, for example:
-
-  export E_INFRA_API_KEY='...'
+If your models.json uses environment variables for API keys, add them to
+~/.pi/agent/env (e.g., export WORKFLOWY_API_KEY='...'), then restart your
+shell or run: source "$HOME/.pi/agent/env"
 
 Start Pi with:
 

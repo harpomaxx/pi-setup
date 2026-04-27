@@ -4,6 +4,8 @@ auth.json
 *.secret
 .env
 .env.*
+env
+secrets.sh
 node_modules/
 dist/
 .DS_Store

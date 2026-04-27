@@ -40,12 +40,100 @@ PI_SETUP_REF=main                                # repo branch/tag
 PI_SETUP_REPO=harpomaxx/pi-setup                 # repo to fetch
 ```
 
-If `models.json` references environment variables, export them before starting Pi, for example:
+If `models.json` references environment variables, add them to `~/.pi/agent/env` and restart your shell:
 
+**Bash/Zsh:**
 ```bash
+# Create once
+cat > ~/.pi/agent/env <<'EOF'
 export E_INFRA_API_KEY='...'
+export WORKFLOWY_API_KEY='...'
+EOF
+chmod 600 ~/.pi/agent/env
+
+# Source for the current shell
+source "$HOME/.pi/agent/env"
+
+# Or just restart your terminal
 pi
 ```
+
+**Fish:**
+```fish
+# Create once
+printf '%s\n' \
+  "export E_INFRA_API_KEY='...'" \
+  "export WORKFLOWY_API_KEY='...'" \
+  > ~/.pi/agent/env
+chmod 600 ~/.pi/agent/env
+
+# Source for the current shell
+source "$HOME/.pi/agent/env"
+
+# Or just restart your terminal
+pi
+```
+
+The installer automatically appends a `source` line to `~/.bashrc`, `~/.zshrc`, and `~/.config/fish/config.fish` so new shells pick it up automatically.
+
+## Extensions
+
+| File | Description |
+|------|-------------|
+| `approval-gate.ts` | Claude Code-like tool approvals (`/approval`) |
+| `stay-in-current-directory.ts` | Sandbox file access to the pi start directory |
+| `web-search.ts` | **Web search tool** — lets the agent search DuckDuckGo for up-to-date info |
+| `workflowy.ts` | **Workflowy API** — create, read, update, complete, and list Workflowy nodes |
+
+### Workflowy
+
+The `workflowy.ts` extension registers tools to interact with the [Workflowy REST API](https://workflowy.com/api-reference). Requires a `WORKFLOWY_API_KEY` environment variable.
+
+**Setup:**
+```bash
+export WORKFLOWY_API_KEY='wf_...'
+pi
+```
+
+**Tools (auto-invoked by the LLM):**
+
+| Tool | Description |
+|------|-------------|
+| `workflowy_create` | Add a new node (defaults to `inbox`). Supports markdown: `**bold**`, `# h1`, `- [ ] todo`, `[date]`, etc. |
+| `workflowy_get` | Retrieve a single node by ID |
+| `workflowy_list` | List children under a node/target (defaults to `inbox`) |
+| `workflowy_update` | Edit name, note, or layout mode of a node |
+| `workflowy_complete` | Mark a node as done / not done |
+| `workflowy_targets` | List available targets (e.g., `inbox`, `home`) |
+
+**Slash commands:**
+```
+/workflowy              # Show connection status and targets
+/workflowy-export       # Export all nodes (rate limit: 1 req/min)
+```
+
+**Examples:**
+- *"Add 'buy milk' to my Workflowy inbox"* → `workflowy_create(name: "buy milk")`
+- *"Mark that todo as done"* → `workflowy_complete(id: "...", complete: true)`
+- *"Show my inbox"* → `workflowy_list(parent_id: "inbox")`
+
+---
+
+### Web Search
+
+The `web-search.ts` extension registers a `web_search` tool that the LLM can call automatically, plus a `/websearch` slash command for manual queries.
+
+**Tool usage:**
+- The agent invokes `web_search` with a `query` and optional `max_results` (1–10, default 5).
+- Results include titles, URLs, and snippets, properly truncated to Pi’s 50 KB / 2000-line limit.
+- No API key is required — it scrapes DuckDuckGo anonymously.
+
+**Manual usage:**
+```
+/websearch how to center a div in css
+```
+
+**Note:** DuckDuckGo may occasionally block automated requests. If searches start failing consistently, consider switching to a search provider with an API key (e.g., Serper, Bing).
 
 ## Manual restore
 

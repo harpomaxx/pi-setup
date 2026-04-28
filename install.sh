@@ -188,7 +188,9 @@ restore_setup() {
   fi
 
   if [[ -f "${src}/models.json" ]]; then
-    cp "${src}/models.json" "${AGENT_DIR}/models.json"
+    sed -e "s|\${E_INFRA_API_KEY}|${E_INFRA_API_KEY:-}|g" \
+        -e "s|\${OLLAMA_API_KEY}|${OLLAMA_API_KEY:-}|g" \
+        "${src}/models.json" > "${AGENT_DIR}/models.json"
   else
     warn "models.json not found"
   fi
@@ -218,7 +220,7 @@ main() {
 Done.
 
 If your models.json uses environment variables for API keys, add them to
-~/.pi/agent/env (e.g., export WORKFLOWY_API_KEY='...'), then restart your
+~/.pi/agent/env (e.g., export E_INFRA_API_KEY='...'), then restart your
 shell or run: source "$HOME/.pi/agent/env"
 
 Start Pi with:

@@ -40,13 +40,24 @@ PI_SETUP_REF=main                                # repo branch/tag
 PI_SETUP_REPO=harpomaxx/pi-setup                 # repo to fetch
 ```
 
-If `models.json` references environment variables, add them to `~/.pi/agent/env` and restart your shell:
+If `models.json` references environment variables, you can export them before running `./install.sh` so the placeholders are expanded during copy:
+
+```bash
+export E_INFRA_API_KEY='sk-...'
+export OLLAMA_API_KEY='ollama'
+./install.sh
+```
+
+A `.env.example` template is included in the repo.
+
+If the variables were not set during install, or you prefer to keep them in a file, add them to `~/.pi/agent/env` and restart your shell:
 
 **Bash/Zsh:**
 ```bash
 # Create once
 cat > ~/.pi/agent/env <<'EOF'
 export E_INFRA_API_KEY='...'
+export OLLAMA_API_KEY='ollama'
 export WORKFLOWY_API_KEY='...'
 EOF
 chmod 600 ~/.pi/agent/env
@@ -63,6 +74,7 @@ pi
 # Create once
 printf '%s\n' \
   "export E_INFRA_API_KEY='...'" \
+  "export OLLAMA_API_KEY='ollama'" \
   "export WORKFLOWY_API_KEY='...'" \
   > ~/.pi/agent/env
 chmod 600 ~/.pi/agent/env

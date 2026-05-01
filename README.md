@@ -59,6 +59,7 @@ cat > ~/.pi/agent/env <<'EOF'
 export E_INFRA_API_KEY='...'
 export OLLAMA_API_KEY='ollama'
 export WORKFLOWY_API_KEY='...'
+export ZOTERO_API_KEY='...'
 EOF
 chmod 600 ~/.pi/agent/env
 
@@ -76,6 +77,7 @@ printf '%s\n' \
   "export E_INFRA_API_KEY='...'" \
   "export OLLAMA_API_KEY='ollama'" \
   "export WORKFLOWY_API_KEY='...'" \
+  "export ZOTERO_API_KEY='...'" \
   > ~/.pi/agent/env
 chmod 600 ~/.pi/agent/env
 
@@ -93,9 +95,12 @@ The installer automatically appends a `source` line to `~/.bashrc`, `~/.zshrc`, 
 | File | Description |
 |------|-------------|
 | `approval-gate.ts` | Claude Code-like tool approvals (`/approval`) |
+| `dev-status.ts` | Footer status showing current directory and git branch |
 | `stay-in-current-directory.ts` | Sandbox file access to the pi start directory |
+| `update-einfra-models.ts` | Refresh the e-infra.cz provider model list in `models.json` |
 | `web-search.ts` | **Web search tool** - lets the agent search DuckDuckGo for up-to-date info |
 | `workflowy.ts` | **Workflowy API** - create, read, update, complete, and list Workflowy nodes |
+| `zotero.ts` | **Zotero API** - search, read, list collections, and add Zotero items |
 
 ### Workflowy
 
@@ -128,6 +133,44 @@ pi
 - *"Add 'buy milk' to my Workflowy inbox"* → `workflowy_create(name: "buy milk")`
 - *"Mark that todo as done"* → `workflowy_complete(id: "...", complete: true)`
 - *"Show my inbox"* → `workflowy_list(parent_id: "inbox")`
+
+---
+
+### Zotero
+
+The `zotero.ts` extension registers tools to interact with the [Zotero Web API](https://www.zotero.org/support/dev/web_api/v3/start). Requires a `ZOTERO_API_KEY` environment variable.
+
+**Setup:**
+```bash
+export ZOTERO_API_KEY='...'
+pi
+```
+
+**Tools (auto-invoked by the LLM):**
+
+| Tool | Description |
+|------|-------------|
+| `zotero_libraries` | List user/group libraries accessible by the API key |
+| `zotero_search` | Search/query items across accessible libraries |
+| `zotero_get` | Retrieve full metadata and child notes/attachments for one item |
+| `zotero_collections` | List collections and collection keys |
+| `zotero_add` | Add a bibliographic item, optionally from DOI/Crossref metadata |
+
+**Examples:**
+- *"What are the last 5 papers added to Zotero?"* → `zotero_search(sort: "dateAdded", direction: "desc", limit: 5)`
+- *"Summarize this Zotero item"* → `zotero_get(key: "...")`
+- *"Add DOI 10.xxxx/yyyy to Zotero"* → `zotero_add(doi: "10.xxxx/yyyy")`
+
+---
+
+### e-infra.cz Models
+
+The `update-einfra-models.ts` extension registers `update_einfra_models`, which fetches the OpenAI-compatible `/models` endpoint for e-infra.cz and updates the provider entry in `models.json`.
+
+**Tool usage:**
+- Updates `~/.pi/agent/models.json` by default.
+- Supports dry-run mode and optional inclusion of embedding/reranker models.
+- Intended for requests like *"refresh/update the e-infra.cz models"*.
 
 ---
 

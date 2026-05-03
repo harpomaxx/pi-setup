@@ -113,7 +113,8 @@ export default function (pi: ExtensionAPI) {
 		promptGuidelines: [
 			"Use workflowy_create when the user wants to add a new item, task, note, or bullet to their Workflowy outline.",
 			"Default parent_id is 'inbox' if the user does not specify a location.",
-			"The name field supports markdown: **bold**, *italic*, # headers, - [ ] todos, links [text](url), dates [YYYY-MM-DD], etc.",
+			"Create normal bullet nodes by default. Do not create checkbox/TODO nodes, do not set layoutMode='todo', and do not include markdown checkboxes like [ ] unless the user explicitly asks for a TODO/task/checkbox.",
+			"The name field supports markdown: **bold**, *italic*, # headers, links [text](url), dates [YYYY-MM-DD], and explicit TODO checkboxes only when requested.",
 			"Use double newlines (\\n\\n) in name to create child nodes under the first line.",
 		],
 		parameters: Type.Object({
@@ -126,7 +127,7 @@ export default function (pi: ExtensionAPI) {
 				Type.String({ description: "Where to place: 'top' (default) or 'bottom'." }),
 			),
 			layoutMode: Type.Optional(
-				Type.String({ description: "Display mode: 'bullets', 'todo', 'h1', 'h2', 'h3', 'code-block', 'quote-block'." }),
+				Type.String({ description: "Display mode: 'bullets', 'todo', 'h1', 'h2', 'h3', 'code-block', 'quote-block'. Default to bullets; use 'todo' only when the user explicitly asks for a TODO/task/checkbox." }),
 			),
 		}),
 

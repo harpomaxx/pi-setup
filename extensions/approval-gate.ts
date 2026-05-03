@@ -26,12 +26,116 @@ function stableStringify(value: unknown): string {
 
 function describeToolCall(toolName: string, input: Record<string, unknown>): string {
 	if (toolName === "bash" && typeof input.command === "string") {
-		return `bash: ${input.command}`;
+		return "bash command";
 	}
 	if ((toolName === "write" || toolName === "edit" || toolName === "read") && typeof input.path === "string") {
 		return `${toolName}: ${input.path}`;
 	}
-	return `${toolName}: ${stableStringify(input)}`;
+	return toolName;
+}
+
+type EditReplacement = {
+	oldText: string;
+	newText: string;
+};
+
+function isEditReplacement(value: unknown): value is EditReplacement {
+	return !!value &&
+		typeof value === "object" &&
+		typeof (value as Record<string, unknown>).oldText === "string" &&
+		typeof (value as Record<string, unknown>).newText === "string";
+}
+
+function truncate(text: string, maxLength = 16_000): string {
+	if (text.length <= maxLength) return text;
+	return `${text.slice(0, maxLength)}\n... truncated ${text.length - maxLength} chars ...`;
+}
+
+function splitLines(text: string): string[] {
+	if (text.length === 0) return [];
+	const lines = text.split(/\r?\n/);
+	if (lines[lines.length - 1] === "") lines.pop();
+	return lines;
+}
+
+function lineDiff(oldText: string, newText: string): string[] {
+	const oldLines = splitLines(oldText);
+	const newLines = splitLines(newText);
+	const dp = Array.from({ length: oldLines.length + 1 }, () => Array<number>(newLines.length + 1).fill(0));
+
+	for (let i = oldLines.length - 1; i >= 0; i--) {
+		for (let j = newLines.length - 1; j >= 0; j--) {
+			dp[i][j] = oldLines[i] === newLines[j]
+				? dp[i + 1][j + 1] + 1
+				: Math.max(dp[i + 1][j], dp[i][j + 1]);
+		}
+	}
+
+	const out: string[] = [];
+	let i = 0;
+	let j = 0;
+	while (i < oldLines.length && j < newLines.length) {
+		if (oldLines[i] === newLines[j]) {
+			out.push(` ${oldLines[i]}`);
+			i++;
+			j++;
+		} else if (dp[i + 1][j] >= dp[i][j + 1]) {
+			out.push(`-${oldLines[i]}`);
+			i++;
+		} else {
+			out.push(`+${newLines[j]}`);
+			j++;
+		}
+	}
+	while (i < oldLines.length) out.push(`-${oldLines[i++]}`);
+	while (j < newLines.length) out.push(`+${newLines[j++]}`);
+
+	if (oldText.endsWith("\n") !== newText.endsWith("\n")) {
+		out.push(newText.endsWith("\n") ? "+" : "-", "\\ No newline at end of old/new text differs");
+	}
+
+	return out;
+}
+
+function formatEditDetails(input: Record<string, unknown>): string | undefined {
+	const path = typeof input.path === "string" ? input.path : "unknown path";
+	const edits = Array.isArray(input.edits) ? input.edits : undefined;
+	if (!edits || !edits.every(isEditReplacement)) return undefined;
+
+	const lines = [
+		"Diff preview:",
+		"````diff",
+		`--- ${path}`,
+		`+++ ${path}`,
+	];
+
+	edits.forEach((edit, index) => {
+		lines.push(`@@ edit ${index + 1}/${edits.length} @@`);
+		lines.push(...lineDiff(edit.oldText, edit.newText));
+		if (index < edits.length - 1) lines.push("");
+	});
+
+	lines.push("````");
+	return truncate(lines.join("\n"));
+}
+
+function formatToolCallDetails(toolName: string, input: Record<string, unknown>): string {
+	if (toolName === "bash" && typeof input.command === "string") {
+		const lines = ["Command:", "```bash", input.command, "```"];
+		const rest = { ...input };
+		delete rest.command;
+		if (Object.keys(rest).length > 0) {
+			lines.push("", "Options:", stableStringify(rest));
+		}
+		return lines.join("\n");
+	}
+
+	if (toolName === "edit") {
+		const details = formatEditDetails(input);
+		if (details) return details;
+	}
+
+	return stableStringify(input);
 }
 
 /**
@@ -122,9 +226,9 @@ export default function (pi: ExtensionAPI) {
 		}
 
 		const summary = describeToolCall(event.toolName, input);
-		const details = stableStringify(input);
+		const details = formatToolCallDetails(event.toolName, input);
 		const choice = await ctx.ui.select(
-			`Approve tool call?\n\n${summary}\n\nArguments:\n${details}`,
+			`Approve tool call?\n\n${summary}\n\n${details}`,
 			[
 				"Allow once",
 				"Always allow this exact call this session",

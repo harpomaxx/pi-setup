@@ -19,8 +19,17 @@ PACKAGE="${PI_PACKAGE:-@mariozechner/pi-coding-agent@latest}"
 # or always when PI_CONFIGURE_NPM_PREFIX=always. Set PI_CONFIGURE_NPM_PREFIX=never to disable.
 NPM_USER_PREFIX="${PI_NPM_PREFIX:-$HOME/.npm-global}"
 CONFIGURE_NPM_PREFIX="${PI_CONFIGURE_NPM_PREFIX:-auto}" # auto | always | never
+ENV_VARS=(
+  E_INFRA_API_KEY
+  OLLAMA_API_KEY
+  WORKFLOWY_API_KEY
+  ZOTERO_API_KEY
+  ZOTERO_USER_ID
+  ZOTERO_LIBRARY_ID
+  ZOTERO_GROUP_ID
+)
 
-log() { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
+log() { printf '\033[1;34m==>\033[0m %s\n' "$*" >&2; }
 warn() { printf '\033[1;33mWARN:\033[0m %s\n' "$*" >&2; }
 fail() { printf '\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 
@@ -33,6 +42,11 @@ trap cleanup EXIT
 
 require_cmd() {
   command -v "$1" >/dev/null 2>&1 || fail "Missing required command: $1"
+}
+
+shell_quote() {
+  local value="$1"
+  printf "'%s'" "${value//\'/\'\\\'\'}"
 }
 
 ensure_npm() {
@@ -118,15 +132,59 @@ configure_agent_env() {
 
   # Bash
   append_line_once "$HOME/.bashrc" "# Pi agent secrets/env"
-  append_line_once "$HOME/.bashrc" 'source "$HOME/.pi/agent/env" 2>/dev/null || true'
+  append_line_once "$HOME/.bashrc" "source \"${agent_env}\" 2>/dev/null || true"
 
   # Zsh
   append_line_once "$HOME/.zshrc" "# Pi agent secrets/env"
-  append_line_once "$HOME/.zshrc" 'source "$HOME/.pi/agent/env" 2>/dev/null || true'
+  append_line_once "$HOME/.zshrc" "source \"${agent_env}\" 2>/dev/null || true"
 
   # Fish
   append_line_once "$HOME/.config/fish/config.fish" "# Pi agent secrets/env"
-  append_line_once "$HOME/.config/fish/config.fish" 'test -f "$HOME/.pi/agent/env"; and source "$HOME/.pi/agent/env"'
+  append_line_once "$HOME/.config/fish/config.fish" "test -f \"${agent_env}\"; and source \"${agent_env}\""
+}
+
+write_agent_env() {
+  local agent_env="${AGENT_DIR}/env"
+  log "Configuring ${agent_env}"
+  mkdir -p "${AGENT_DIR}"
+  touch "${agent_env}"
+  chmod 600 "${agent_env}" 2>/dev/null || true
+
+  append_line_once "${agent_env}" "# Pi agent secrets/env"
+
+  local name value quoted
+  for name in "${ENV_VARS[@]}"; do
+    value="${!name-}"
+    if [[ -n "${value}" ]]; then
+      quoted="$(shell_quote "${value}")"
+      if grep -Eq "^[[:space:]]*(export[[:space:]]+)?${name}=" "${agent_env}"; then
+        node - "${agent_env}" "${name}" "export ${name}=${quoted}" <<'NODE'
+const fs = require("node:fs");
+const [file, name, replacement] = process.argv.slice(2);
+const lines = fs.readFileSync(file, "utf8").split(/\n/);
+const re = new RegExp(`^\\s*(export\\s+)?${name}=`);
+let replaced = false;
+const next = lines.map((line) => {
+  if (!re.test(line)) return line;
+  replaced = true;
+  return replacement;
+});
+if (!replaced) next.push(replacement);
+fs.writeFileSync(file, next.join("\n").replace(/\n*$/, "\n"));
+NODE
+      else
+        printf '%s\n' "export ${name}=${quoted}" >>"${agent_env}"
+      fi
+    elif ! grep -Eq "^[[:space:]]*(export[[:space:]]+)?${name}=" "${agent_env}"; then
+      printf '%s\n' "# export ${name}=''" >>"${agent_env}"
+    fi
+  done
+
+  # Make values available to the rest of this installer without requiring a new shell.
+  # shellcheck disable=SC1090
+  set -a
+  . "${agent_env}" 2>/dev/null || true
+  set +a
 }
 
 install_pi() {
@@ -188,9 +246,21 @@ restore_setup() {
   fi
 
   if [[ -f "${src}/models.json" ]]; then
-    sed -e "s|\${E_INFRA_API_KEY}|${E_INFRA_API_KEY:-}|g" \
-        -e "s|\${OLLAMA_API_KEY}|${OLLAMA_API_KEY:-}|g" \
-        "${src}/models.json" > "${AGENT_DIR}/models.json"
+    node - "${src}/models.json" "${AGENT_DIR}/models.json" <<'NODE'
+const fs = require("node:fs");
+const [src, dest] = process.argv.slice(2);
+const replacements = {
+  "${E_INFRA_API_KEY}": process.env.E_INFRA_API_KEY || "",
+  "${OLLAMA_API_KEY}": process.env.OLLAMA_API_KEY || "",
+};
+let text = fs.readFileSync(src, "utf8");
+for (const [placeholder, value] of Object.entries(replacements)) {
+  const jsonStringContent = JSON.stringify(value).slice(1, -1);
+  text = text.split(placeholder).join(jsonStringContent);
+}
+JSON.parse(text);
+fs.writeFileSync(dest, text);
+NODE
   else
     warn "models.json not found"
   fi
@@ -212,16 +282,26 @@ main() {
   install_pi
   local setup_dir
   setup_dir="$(fetch_repo)"
+  write_agent_env
   restore_setup "${setup_dir}"
   configure_agent_env
 
-  cat <<'EOF'
+  cat <<EOF
 
 Done.
 
-If your models.json uses environment variables for API keys, add them to
-~/.pi/agent/env (e.g., export E_INFRA_API_KEY='...'), then restart your
-shell or run: source "$HOME/.pi/agent/env"
+Pi was installed and this setup was restored into:
+
+  ${AGENT_DIR}
+
+Environment values passed to the installer were saved in:
+
+  ${AGENT_DIR}/env
+
+If any required keys were not provided, edit that file, then restart your
+shell or run:
+
+  source "${AGENT_DIR}/env"
 
 Start Pi with:
 

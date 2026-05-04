@@ -1,6 +1,17 @@
 {
-  "lastChangelogVersion": "0.70.2",
+  "lastChangelogVersion": "0.72.1",
   "defaultProvider": "openai-codex",
   "defaultModel": "gpt-5.5",
-  "defaultThinkingLevel": "medium"
+  "defaultThinkingLevel": "medium",
+  "hideThinkingBlock": true,
+  "theme": "dark",
+  "extensions": [
+    "+extensions/approval-gate.ts",
+    "+extensions/dev-status.ts",
+    "+extensions/stay-in-current-directory.ts",
+    "+extensions/update-einfra-models.ts",
+    "+extensions/web-search.ts",
+    "+extensions/workflowy.ts",
+    "+extensions/zotero.ts"
+  ]
 }

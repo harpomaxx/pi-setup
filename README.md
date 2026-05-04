@@ -27,8 +27,10 @@ The installer will:
 3. Add that npm global `bin` directory to PATH for Bash (`~/.bashrc`) and Fish (`~/.config/fish/config.fish`)
 4. Run `npm install -g @mariozechner/pi-coding-agent@latest`
 5. Fetch this repo
-6. Copy `extensions/*.ts` to `~/.pi/agent/extensions/`
-7. Copy `models.json` and `settings.json` to `~/.pi/agent/`
+6. Create or update `~/.pi/agent/env` with any supported API keys exported before install
+7. Copy `extensions/*.ts` to `~/.pi/agent/extensions/`
+8. Copy `models.json` and `settings.json` to `~/.pi/agent/`
+9. Configure Bash, Zsh, and Fish to source `~/.pi/agent/env` in new shells
 
 Useful installer options:
 
@@ -36,21 +38,34 @@ Useful installer options:
 PI_NPM_PREFIX="$HOME/.local/npm-global"          # choose npm global prefix
 PI_CONFIGURE_NPM_PREFIX=always                   # force prefix setup
 PI_CONFIGURE_NPM_PREFIX=never                    # never change npm prefix/PATH
+PI_AGENT_DIR="$HOME/.pi/agent"                   # choose Pi config destination
 PI_SETUP_REF=main                                # repo branch/tag
 PI_SETUP_REPO=harpomaxx/pi-setup                 # repo to fetch
 ```
 
-If `models.json` references environment variables, you can export them before running `./install.sh` so the placeholders are expanded during copy:
+To install with curl and bash and persist your API keys into `~/.pi/agent/env`, export them before running the installer:
 
 ```bash
 export E_INFRA_API_KEY='sk-...'
 export OLLAMA_API_KEY='ollama'
-./install.sh
+export WORKFLOWY_API_KEY='wf_...'
+export ZOTERO_API_KEY='...'
+curl -fsSL https://raw.githubusercontent.com/harpomaxx/pi-setup/main/install.sh | bash
+```
+
+Inline variables also work:
+
+```bash
+E_INFRA_API_KEY='sk-...' \
+OLLAMA_API_KEY='ollama' \
+WORKFLOWY_API_KEY='wf_...' \
+ZOTERO_API_KEY='...' \
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/harpomaxx/pi-setup/main/install.sh)"
 ```
 
 A `.env.example` template is included in the repo.
 
-If the variables were not set during install, or you prefer to keep them in a file, add them to `~/.pi/agent/env` and restart your shell:
+If the variables were not set during install, or you prefer to keep them in a file, edit `~/.pi/agent/env` and restart your shell:
 
 **Bash/Zsh:**
 ```bash

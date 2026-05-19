@@ -245,6 +245,11 @@ restore_setup() {
     warn "No extensions/*.ts found in setup repo"
   fi
 
+  if compgen -G "${src}/agents/*.md" >/dev/null; then
+    mkdir -p "${AGENT_DIR}/agents"
+    cp "${src}"/agents/*.md "${AGENT_DIR}/agents/"
+  fi
+
   if [[ -f "${src}/models.json" ]]; then
     node - "${src}/models.json" "${AGENT_DIR}/models.json" <<'NODE'
 const fs = require("node:fs");
@@ -271,11 +276,16 @@ NODE
     warn "settings.json not found"
   fi
 
-  chmod 700 "${AGENT_DIR}" "${AGENT_DIR}/extensions" 2>/dev/null || true
-  chmod 600 "${AGENT_DIR}/models.json" "${AGENT_DIR}/settings.json" 2>/dev/null || true
+  chmod 700 "${AGENT_DIR}" "${AGENT_DIR}/extensions" "${AGENT_DIR}/agents" 2>/dev/null || true
+  chmod 600 "${AGENT_DIR}/models.json" "${AGENT_DIR}/settings.json" "${AGENT_DIR}/agents"/*.md 2>/dev/null || true
 
   log "Installed extensions:"
   ls -1 "${AGENT_DIR}/extensions"/*.ts 2>/dev/null | sed 's/^/  - /' || true
+
+  if [[ -d "${AGENT_DIR}/agents" ]]; then
+    log "Installed agents:"
+    ls -1 "${AGENT_DIR}/agents"/*.md 2>/dev/null | sed 's/^/  - /' || true
+  fi
 }
 
 main() {

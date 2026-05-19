@@ -29,8 +29,9 @@ The installer will:
 5. Fetch this repo
 6. Create or update `~/.pi/agent/env` with any supported API keys exported before install
 7. Copy `extensions/*.ts` to `~/.pi/agent/extensions/`
-8. Copy `models.json` and `settings.json` to `~/.pi/agent/`
-9. Configure Bash, Zsh, and Fish to source `~/.pi/agent/env` in new shells
+8. Copy `agents/*.md` to `~/.pi/agent/agents/` when present
+9. Copy `models.json` and `settings.json` to `~/.pi/agent/`
+10. Configure Bash, Zsh, and Fish to source `~/.pi/agent/env` in new shells
 
 Useful installer options:
 
@@ -50,6 +51,8 @@ export E_INFRA_API_KEY='sk-...'
 export OLLAMA_API_KEY='ollama'
 export WORKFLOWY_API_KEY='wf_...'
 export ZOTERO_API_KEY='...'
+# Optional: enables Brave Search API in web-search.ts; otherwise DuckDuckGo fallback is used.
+export BRAVE_API_KEY='...'
 curl -fsSL https://raw.githubusercontent.com/harpomaxx/pi-setup/main/install.sh | bash
 ```
 
@@ -105,15 +108,26 @@ pi
 
 The installer automatically appends a `source` line to `~/.bashrc`, `~/.zshrc`, and `~/.config/fish/config.fish` so new shells pick it up automatically.
 
+## Packages and agents
+
+`settings.json` enables these Pi packages:
+
+- `npm:@micuintus/llm-wiki`
+- `npm:pi-subagents`
+- `npm:pi-intercom`
+
+Custom agent/mode definitions live in `agents/*.md` and are restored by `install.sh` when present.
+
 ## Extensions
 
 | File | Description |
 |------|-------------|
 | `approval-gate.ts` | Claude Code-like tool approvals (`/approval`) |
+| `context-display.ts` | Context/status display for the current Pi session |
 | `dev-status.ts` | Footer status showing current directory and git branch |
 | `stay-in-current-directory.ts` | Sandbox file access to the pi start directory |
 | `update-einfra-models.ts` | Refresh the e-infra.cz provider model list in `models.json` |
-| `web-search.ts` | **Web search tool** - lets the agent search DuckDuckGo for up-to-date info |
+| `web-search.ts` | **Web search tool** - uses Brave Search when `BRAVE_API_KEY` is set, with DuckDuckGo fallback |
 | `workflowy.ts` | **Workflowy API** - create, read, update, complete, and list Workflowy nodes |
 | `zotero.ts` | **Zotero API** - search, read, list collections, and add Zotero items |
 
@@ -194,9 +208,10 @@ The `update-einfra-models.ts` extension registers `update_einfra_models`, which 
 The `web-search.ts` extension registers a `web_search` tool that the LLM can call automatically, plus a `/websearch` slash command for manual queries.
 
 **Tool usage:**
-- The agent invokes `web_search` with a `query` and optional `max_results` (1–10, default 5).
-- Results include titles, URLs, and snippets, properly truncated to Pi's 50 KB / 2000-line limit.
-- No API key is required — it scrapes DuckDuckGo anonymously.
+- The agent invokes `web_search` with a `query` and optional `max_results`.
+- When `BRAVE_API_KEY` is set, provider `auto` uses Brave Search API first.
+- If Brave is not configured, or DuckDuckGo is explicitly selected, it uses DuckDuckGo scraping as a fallback.
+- Results include titles, URLs, snippets, source, and optional age, properly truncated to Pi's 50 KB / 2000-line limit.
 
 **Resilience features:**
 - **Rotating User-Agents** — cycles through 6 realistic browser strings on each retry
@@ -215,8 +230,9 @@ The `web-search.ts` extension registers a `web_search` tool that the LLM can cal
 ## Manual restore
 
 ```bash
-mkdir -p ~/.pi/agent/extensions
+mkdir -p ~/.pi/agent/extensions ~/.pi/agent/agents
 cp extensions/*.ts ~/.pi/agent/extensions/
+cp agents/*.md ~/.pi/agent/agents/ 2>/dev/null || true
 cp models.json ~/.pi/agent/models.json
 cp settings.json ~/.pi/agent/settings.json
 ```

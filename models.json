@@ -1,28 +1,80 @@
 {
-  "providers": {
-    "e-infra.cz": {
-      "baseUrl": "https://llm.ai.e-infra.cz/v1",
-      "api": "openai-completions",
-      "apiKey": "${E_INFRA_API_KEY}",
-      "models": [
-        { "id": "gpt-oss-120b", "name": "gpt-oss-120b", "contextWindow": 128000 },
-        { "id": "qwen3-coder-next", "name": "qwen3-coder-next", "contextWindow": 128000 },
-        { "id": "kimi-k2.6", "name": "kimi-k2.6", "contextWindow": 128000 },
-        { "id": "glm-5", "name": "glm-5", "contextWindow": 128000 },
-        { "id": "coder", "name": "coder", "contextWindow": 128000 },
-        { "id": "agentic", "name": "agentic", "contextWindow": 128000 },
-        { "id": "thinker", "name": "thinker", "contextWindow": 128000 },
-        { "id": "mini", "name": "mini", "contextWindow": 128000 }
-      ]
-    },
-    "cabildo": {
-      "baseUrl": "http://cabildo:11434/v1",
-      "api": "openai-completions",
-      "apiKey": "${OLLAMA_API_KEY}",
-      "models": [
-        { "id": "qwen2.5-coder", "name": "qwen2.5-coder:14b-instruct", "contextWindow": 8192 },
-        { "id": "qwen3.5:9b-32k", "name": "qwen3.5:9b-16k", "contextWindow": 32768}
-      ]
+    "providers": {
+        "e-infra.cz": {
+            "baseUrl": "https://llm.ai.e-infra.cz/v1",
+            "api": "openai-completions",
+            "apiKey": "${E_INFRA_API_KEY}",
+            "models": [
+                {
+                    "id": "gpt-oss-120b",
+                    "name": "gpt-oss-120b",
+                    "contextWindow": 128000
+                },
+                {
+                    "id": "qwen3-coder-next",
+                    "name": "qwen3-coder-next",
+                    "contextWindow": 256000
+                },
+                {
+                    "id": "kimi-k2.6",
+                    "name": "kimi-k2.6",
+                    "contextWindow": 256000
+                },
+                {
+                    "id": "glm-5",
+                    "name": "glm-5",
+                    "contextWindow": 200000
+                },
+                {
+                    "id": "coder",
+                    "name": "coder",
+                    "contextWindow": 256000
+                },
+                {
+                    "id": "agentic",
+                    "name": "agentic",
+                    "contextWindow": 256000
+                },
+                {
+                    "id": "thinker",
+                    "name": "thinker",
+                    "contextWindow": 128000
+                },
+                {
+                    "id": "mini",
+                    "name": "mini",
+                    "contextWindow": 128000
+                }
+            ]
+        },
+        "cabildo": {
+            "baseUrl": "http://cabildo:11434/v1",
+            "api": "openai-completions",
+            "apiKey": "${OLLAMA_API_KEY}",
+            "models": [
+                {
+                    "id": "qwen2.5-coder",
+                    "name": "qwen2.5-coder:14b-instruct",
+                    "contextWindow": 8192
+                },
+                {
+                    "id": "qwen3.5:9b-32k",
+                    "name": "qwen3.5:9b-16k",
+                    "contextWindow": 32768
+                }
+            ]
+        },
+        "cabildo-llama.cpp": {
+            "baseUrl": "http://cabildo:8080/v1",
+            "api": "openai-completions",
+            "apiKey": "dummy",
+            "models": [
+                {
+                    "id": "unsloth/Qwen3.6-35B-A3B-GGUF",
+                    "name": "unsloth/Qwen3.6-35B-A3B-GGUF",
+                    "contextWindow": 128000
+                }
+            ]
+        }
     }
-  }
 }

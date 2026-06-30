@@ -22,11 +22,27 @@ CONFIGURE_NPM_PREFIX="${PI_CONFIGURE_NPM_PREFIX:-auto}" # auto | always | never
 ENV_VARS=(
   E_INFRA_API_KEY
   OLLAMA_API_KEY
+  BRAVE_API_KEY
   WORKFLOWY_API_KEY
   ZOTERO_API_KEY
   ZOTERO_USER_ID
   ZOTERO_LIBRARY_ID
   ZOTERO_GROUP_ID
+  ZOTERO_CONCURRENCY
+  ZOTERO_MIN_INTERVAL_MS
+  ZOTERO_MAX_RETRIES
+  ZOTERO_BACKOFF_BASE_MS
+  ZOTERO_BACKOFF_MAX_MS
+  ZOTERO_REQUEST_TIMEOUT_MS
+  ZOTERO_SEARCH_REQUEST_TIMEOUT_MS
+  ZOTERO_SEARCH_BUDGET_MS
+  GOOGLE_OAUTH_CREDENTIALS_JSON
+  GOOGLE_CLIENT_ID
+  GOOGLE_CLIENT_SECRET
+  GOOGLE_REDIRECT_URI
+  GOOGLE_CREDENTIALS_FILE
+  GOOGLE_TOKEN_FILE
+  MONITOR_PORT
 )
 
 log() { printf '\033[1;34m==>\033[0m %s\n' "$*" >&2; }
@@ -245,6 +261,25 @@ restore_setup() {
     warn "No extensions/*.ts found in setup repo"
   fi
 
+  local ext_dir ext_name dest_dir
+  for ext_dir in "${src}"/extensions/*; do
+    [[ -d "${ext_dir}" ]] || continue
+    ext_name="$(basename "${ext_dir}")"
+    dest_dir="${AGENT_DIR}/extensions/${ext_name}"
+    rm -rf "${dest_dir}"
+    cp -R "${ext_dir}" "${dest_dir}"
+    rm -rf "${dest_dir}/node_modules" "${dest_dir}/dist"
+    if [[ -f "${dest_dir}/package.json" ]]; then
+      log "Installing extension dependencies for ${ext_name}"
+      (cd "${dest_dir}" && npm install --omit=dev)
+    fi
+  done
+
+  if compgen -G "${src}/skills/*" >/dev/null; then
+    mkdir -p "${AGENT_DIR}/skills"
+    cp -R "${src}"/skills/* "${AGENT_DIR}/skills/"
+  fi
+
   if compgen -G "${src}/agents/*.md" >/dev/null; then
     mkdir -p "${AGENT_DIR}/agents"
     cp "${src}"/agents/*.md "${AGENT_DIR}/agents/"
@@ -276,11 +311,16 @@ NODE
     warn "settings.json not found"
   fi
 
-  chmod 700 "${AGENT_DIR}" "${AGENT_DIR}/extensions" "${AGENT_DIR}/agents" 2>/dev/null || true
-  chmod 600 "${AGENT_DIR}/models.json" "${AGENT_DIR}/settings.json" "${AGENT_DIR}/agents"/*.md 2>/dev/null || true
+  chmod 700 "${AGENT_DIR}" "${AGENT_DIR}/extensions" "${AGENT_DIR}/agents" "${AGENT_DIR}/skills" 2>/dev/null || true
+  chmod 600 "${AGENT_DIR}/models.json" "${AGENT_DIR}/settings.json" "${AGENT_DIR}/agents"/*.md "${AGENT_DIR}/skills"/*/SKILL.md 2>/dev/null || true
 
   log "Installed extensions:"
-  ls -1 "${AGENT_DIR}/extensions"/*.ts 2>/dev/null | sed 's/^/  - /' || true
+  find "${AGENT_DIR}/extensions" -mindepth 1 -maxdepth 2 \( -name '*.ts' -o -name 'index.ts' \) -print 2>/dev/null | sort | sed 's/^/  - /' || true
+
+  if [[ -d "${AGENT_DIR}/skills" ]]; then
+    log "Installed skills:"
+    find "${AGENT_DIR}/skills" -mindepth 2 -maxdepth 2 -name 'SKILL.md' -print 2>/dev/null | sort | sed 's/^/  - /' || true
+  fi
 
   if [[ -d "${AGENT_DIR}/agents" ]]; then
     log "Installed agents:"

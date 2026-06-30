@@ -2,7 +2,7 @@
 
 Public backup of my Pi agent setup.
 
-Includes extensions, model setup, settings, and a bootstrap installer.
+Includes extensions, skills, model setup, settings, and a bootstrap installer.
 
 Secrets and auth files are intentionally excluded.
 
@@ -28,10 +28,12 @@ The installer will:
 4. Run `npm install -g @mariozechner/pi-coding-agent@latest`
 5. Fetch this repo
 6. Create or update `~/.pi/agent/env` with any supported API keys exported before install
-7. Copy `extensions/*.ts` to `~/.pi/agent/extensions/`
-8. Copy `agents/*.md` to `~/.pi/agent/agents/` when present
-9. Copy `models.json` and `settings.json` to `~/.pi/agent/`
-10. Configure Bash, Zsh, and Fish to source `~/.pi/agent/env` in new shells
+7. Copy single-file extensions and extension directories to `~/.pi/agent/extensions/`
+8. Install per-extension npm dependencies when an extension directory has `package.json`
+9. Copy `skills/*` to `~/.pi/agent/skills/` when present
+10. Copy `agents/*.md` to `~/.pi/agent/agents/` when present
+11. Copy `models.json` and `settings.json` to `~/.pi/agent/`
+12. Configure Bash, Zsh, and Fish to source `~/.pi/agent/env` in new shells
 
 Useful installer options:
 
@@ -53,6 +55,9 @@ export WORKFLOWY_API_KEY='wf_...'
 export ZOTERO_API_KEY='...'
 # Optional: enables Brave Search API in web-search.ts; otherwise DuckDuckGo fallback is used.
 export BRAVE_API_KEY='...'
+# Optional: enables Google Docs/Sheets tools.
+export GOOGLE_CLIENT_ID='...'
+export GOOGLE_CLIENT_SECRET='...'
 curl -fsSL https://raw.githubusercontent.com/harpomaxx/pi-setup/main/install.sh | bash
 ```
 
@@ -115,6 +120,7 @@ The installer automatically appends a `source` line to `~/.bashrc`, `~/.zshrc`, 
 - `npm:@micuintus/llm-wiki`
 - `npm:pi-subagents`
 - `npm:pi-intercom`
+- `npm:pi-continue`
 
 Custom agent/mode definitions live in `agents/*.md` and are restored by `install.sh` when present.
 
@@ -125,11 +131,56 @@ Custom agent/mode definitions live in `agents/*.md` and are restored by `install
 | `approval-gate.ts` | Claude Code-like tool approvals (`/approval`) |
 | `context-display.ts` | Context/status display for the current Pi session |
 | `dev-status.ts` | Footer status showing current directory and git branch |
+| `google-docs/` | **Google Docs/Sheets API** - OAuth helper, Docs search/read/edit/export, and Sheets read/update/append |
+| `remote-monitor.ts` | Optional browser monitor/control server for a running Pi session |
 | `stay-in-current-directory.ts` | Sandbox file access to the pi start directory |
 | `update-einfra-models.ts` | Refresh the e-infra.cz provider model list in `models.json` |
 | `web-search.ts` | **Web search tool** - uses Brave Search when `BRAVE_API_KEY` is set, with DuckDuckGo fallback |
 | `workflowy.ts` | **Workflowy API** - create, read, update, complete, and list Workflowy nodes |
 | `zotero.ts` | **Zotero API** - search, read, list collections, and add Zotero items |
+
+## Skills
+
+This setup includes these global skills under `skills/`:
+
+| Skill | Description |
+|------|-------------|
+| `evaluacion-proyectos-ia` | Spanish rubric/workflow for evaluating final AI student projects. |
+| `paper-review` | Structured scholarly paper/manuscript review. |
+| `weekly-workflowy-summary` | Weekly grouped summaries from Workflowy calendar items. |
+
+### Google Docs and Sheets
+
+The `google-docs/` extension registers tools for Google Docs, Google Drive search, and Google Sheets. It requires OAuth credentials from a Google Cloud OAuth client.
+
+**Setup options:**
+```bash
+# Option A: environment variables
+export GOOGLE_CLIENT_ID='...'
+export GOOGLE_CLIENT_SECRET='...'
+export GOOGLE_REDIRECT_URI='http://localhost'  # optional
+
+# Option B: credentials file
+mkdir -p ~/.config/pi-google-docs
+cp credentials.json ~/.config/pi-google-docs/credentials.json
+```
+
+Then start Pi, ask for a Google Docs action, run `google_docs_auth_url` if authorization is needed, and finish with `google_docs_auth_code` using the redirect code.
+
+**Tools:**
+
+| Tool | Description |
+|------|-------------|
+| `google_docs_auth_url` | Generate an OAuth authorization URL |
+| `google_docs_auth_code` | Exchange an OAuth code and save the local token |
+| `google_docs_search` | Search/list Google Drive files |
+| `google_docs_get` | Read Google Doc plain text |
+| `google_docs_replace_text` | Replace text in a Google Doc |
+| `google_docs_insert_text` | Insert/append text in a Google Doc |
+| `google_docs_export` | Export a Google Doc as text or HTML |
+| `google_sheets_get` | Read Google Sheets values |
+| `google_sheets_update` | Update a Sheet range |
+| `google_sheets_append` | Append rows to a Sheet |
 
 ### Workflowy
 
@@ -230,8 +281,17 @@ The `web-search.ts` extension registers a `web_search` tool that the LLM can cal
 ## Manual restore
 
 ```bash
-mkdir -p ~/.pi/agent/extensions ~/.pi/agent/agents
-cp extensions/*.ts ~/.pi/agent/extensions/
+mkdir -p ~/.pi/agent/extensions ~/.pi/agent/agents ~/.pi/agent/skills
+cp extensions/*.ts ~/.pi/agent/extensions/ 2>/dev/null || true
+for dir in extensions/*/; do
+  [ -d "$dir" ] || continue
+  name="$(basename "$dir")"
+  rm -rf "$HOME/.pi/agent/extensions/$name"
+  cp -R "$dir" "$HOME/.pi/agent/extensions/$name"
+  rm -rf "$HOME/.pi/agent/extensions/$name/node_modules"
+  [ -f "$HOME/.pi/agent/extensions/$name/package.json" ] && (cd "$HOME/.pi/agent/extensions/$name" && npm install --omit=dev)
+done
+cp -R skills/* ~/.pi/agent/skills/ 2>/dev/null || true
 cp agents/*.md ~/.pi/agent/agents/ 2>/dev/null || true
 cp models.json ~/.pi/agent/models.json
 cp settings.json ~/.pi/agent/settings.json

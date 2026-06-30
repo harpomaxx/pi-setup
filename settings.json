@@ -1,36 +1,42 @@
 {
-  "lastChangelogVersion": "0.75.3",
+  "lastChangelogVersion": "0.79.8",
   "defaultProvider": "openai-codex",
   "defaultModel": "gpt-5.5",
-  "defaultThinkingLevel": "medium",
+  "defaultThinkingLevel": "high",
   "hideThinkingBlock": true,
   "theme": "dark",
   "extensions": [
     "+extensions/dev-status.ts",
-    "+extensions/update-einfra-models.ts",
     "+extensions/web-search.ts",
-    "+extensions/workflowy.ts",
-    "+extensions/zotero.ts",
     "-extensions/stay-in-current-directory.ts",
     "-extensions/remote-monitor.ts",
+    "-extensions/approval-gate.ts",
     "+extensions/context-display.ts",
-    "-extensions/approval-gate.ts"
+    "+extensions/workflowy.ts",
+    "+extensions/zotero.ts",
+    "+extensions/update-einfra-models.ts"
   ],
   "packages": [
-    "npm:@micuintus/llm-wiki",
+    {
+      "source": "npm:@micuintus/llm-wiki",
+      "skills": [
+        "+llm-wiki/SKILL.md"
+      ]
+    },
     {
       "source": "npm:pi-subagents",
       "prompts": [
-        "-prompts/gather-context-and-clarify.md",
         "-prompts/parallel-cleanup.md",
         "-prompts/parallel-context-build.md",
         "-prompts/parallel-handoff-plan.md",
         "-prompts/parallel-research.md",
         "-prompts/parallel-review.md",
-        "-prompts/review-loop.md"
+        "+prompts/gather-context-and-clarify.md",
+        "+prompts/review-loop.md"
       ]
     },
-    "npm:pi-intercom"
+    "npm:pi-intercom",
+    "npm:pi-continue"
   ],
   "subagents": {
     "agentOverrides": {
@@ -49,6 +55,13 @@
       "reviewer": {
         "disabled": true
       }
+    }
+  },
+  "httpIdleTimeoutMs": 0,
+  "retry": {
+    "provider": {
+      "timeoutMs": 900000,
+      "maxRetries": 0
     }
   }
 }
